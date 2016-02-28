@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Prediction Assignment Writeup by ducheznie</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Prediction Assignment Writeup</h1>
+      <h2 class="project-tagline"></h2>
+      <a href="https://github.com/ducheznie/Prediction-Assignment" class="btn">View on GitHub</a>
+      <a href="https://github.com/ducheznie/Prediction-Assignment/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/ducheznie/Prediction-Assignment/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p>Thomas So<br>
+February 28, 2016  </p>
+
+<h2>
+<a id="executive-summary" class="anchor" href="#executive-summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Executive Summary</h2>
+
+<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. </p>
+
+<p>Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E)</p>
+
+<p>More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset). </p>
+
+<h2>
+<a id="data" class="anchor" href="#data" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data</h2>
+
+<p>The training data set is available <a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv">here</a></p>
+
+<p>The test data is available <a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv">here</a></p>
+
+<p>To start off, we will load the proper libraries, training, and testing data. </p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">## setting seed and loading libraries</span>
+set.seed(<span class="pl-c1">12345</span>)
+library(<span class="pl-smi">caret</span>)
+library(<span class="pl-smi">ggplot2</span>)
+
+<span class="pl-c">## loading data</span>
+<span class="pl-smi">TrainData</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-s"><span class="pl-pds">"</span>pml-training.csv<span class="pl-pds">"</span></span>, <span class="pl-v">header</span> <span class="pl-k">=</span> <span class="pl-c1">TRUE</span>, <span class="pl-v">na.strings</span><span class="pl-k">=</span>c(<span class="pl-s"><span class="pl-pds">"</span>NA<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>#DIV/0!<span class="pl-pds">"</span></span>))
+<span class="pl-smi">TestData</span> <span class="pl-k">&lt;-</span> read.csv(<span class="pl-s"><span class="pl-pds">"</span>pml-testing.csv<span class="pl-pds">"</span></span>, <span class="pl-v">header</span> <span class="pl-k">=</span> <span class="pl-c1">TRUE</span>, <span class="pl-v">na.strings</span><span class="pl-k">=</span>c(<span class="pl-s"><span class="pl-pds">"</span>NA<span class="pl-pds">"</span></span>, <span class="pl-s"><span class="pl-pds">"</span>#DIV/0!<span class="pl-pds">"</span></span>))</pre></div>
+
+<h2>
+<a id="cleaning-and-processing" class="anchor" href="#cleaning-and-processing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Cleaning and Processing</h2>
+
+<p>There are many NA values which needs to be removed, as well as variables that we believe have no affect on the prediction of how well an activity was performed.
+The variables that will be removed have to do with user information and time, which are irrelevant to our prediction.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">## dimension before processing</span>
+dim(<span class="pl-smi">TrainData</span>)</pre></div>
+
+<pre><code>## [1] 19622   160
+</code></pre>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">## removing variables with at least one NA value</span>
+<span class="pl-smi">noNATrainData</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">TrainData</span>[, apply(<span class="pl-smi">TrainData</span>, <span class="pl-c1">2</span>, <span class="pl-k">function</span>(<span class="pl-smi">x</span>) <span class="pl-k">!</span>any(is.na(<span class="pl-smi">x</span>)))]
+dim(<span class="pl-smi">noNATrainData</span>)</pre></div>
+
+<pre><code>## [1] 19622    60
+</code></pre>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">## removing variables with user information and time</span>
+<span class="pl-smi">cleanTrainData</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">noNATrainData</span>[,<span class="pl-k">-</span>c(<span class="pl-c1">1</span><span class="pl-k">:</span><span class="pl-c1">8</span>)]
+dim(<span class="pl-smi">cleanTrainData</span>)</pre></div>
+
+<pre><code>## [1] 19622    52
+</code></pre>
+
+<p>20 clean cases are set aside as test data set. </p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">cleanTestData</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">TestData</span>[, names(<span class="pl-smi">cleanTrainData</span>[,<span class="pl-k">-</span><span class="pl-c1">52</span>])]
+dim(<span class="pl-smi">cleanTestData</span>)</pre></div>
+
+<pre><code>## [1] 20 51
+</code></pre>
+
+<h2>
+<a id="data-partitioning-and-prediction-process" class="anchor" href="#data-partitioning-and-prediction-process" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data Partitioning and Prediction Process</h2>
+
+<p>We partition the cleaned data set to obtain a 75% training set and a 25% test set, which is indepedent of the 20 cases that were set aside above.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-c">## partitioning the data</span>
+<span class="pl-smi">inTrain</span> <span class="pl-k">&lt;-</span>createDataPartition(<span class="pl-v">y</span> <span class="pl-k">=</span> <span class="pl-smi">cleanTrainData</span><span class="pl-k">$</span><span class="pl-smi">classe</span>, <span class="pl-v">p</span> <span class="pl-k">=</span> <span class="pl-c1">0.75</span>, <span class="pl-v">list</span> <span class="pl-k">=</span> <span class="pl-c1">FALSE</span>)
+<span class="pl-smi">training</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">cleanTrainData</span>[<span class="pl-smi">inTrain</span>,]
+<span class="pl-smi">testing</span> <span class="pl-k">&lt;-</span> <span class="pl-smi">cleanTrainData</span>[<span class="pl-k">-</span><span class="pl-smi">inTrain</span>,]
+dim(<span class="pl-smi">training</span>)</pre></div>
+
+<pre><code>## [1] 14718    52
+</code></pre>
+
+<div class="highlight highlight-source-r"><pre>dim(<span class="pl-smi">testing</span>)</pre></div>
+
+<pre><code>## [1] 4904   52
+</code></pre>
+
+<h2>
+<a id="model-random-forest" class="anchor" href="#model-random-forest" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Model: Random Forest</h2>
+
+<p>The first model we try is Random Forest.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">fitControl</span> <span class="pl-k">&lt;-</span> trainControl(<span class="pl-v">method</span><span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>cv<span class="pl-pds">"</span></span>, <span class="pl-v">number</span><span class="pl-k">=</span><span class="pl-c1">5</span>, <span class="pl-v">allowParallel</span><span class="pl-k">=</span><span class="pl-c1">TRUE</span>, <span class="pl-v">verbose</span><span class="pl-k">=</span><span class="pl-c1">TRUE</span>)
+<span class="pl-smi">rfFit</span> <span class="pl-k">&lt;-</span> train(<span class="pl-smi">classe</span> <span class="pl-k">~</span>. , <span class="pl-v">data</span> <span class="pl-k">=</span> <span class="pl-smi">training</span>, <span class="pl-v">method</span> <span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>rf<span class="pl-pds">"</span></span>, <span class="pl-v">trControl</span> <span class="pl-k">=</span> <span class="pl-smi">fitControl</span>, <span class="pl-v">verbose</span> <span class="pl-k">=</span> <span class="pl-c1">FALSE</span>)</pre></div>
+
+<pre><code>## Loading required package: randomForest
+</code></pre>
+
+<pre><code>## randomForest 4.6-12
+</code></pre>
+
+<pre><code>## Type rfNews() to see new features/changes/bug fixes.
+</code></pre>
+
+<pre><code>## 
+## Attaching package: 'randomForest'
+</code></pre>
+
+<pre><code>## The following object is masked from 'package:ggplot2':
+## 
+##     margin
+</code></pre>
+
+<pre><code>## + Fold1: mtry= 2 
+## - Fold1: mtry= 2 
+## + Fold1: mtry=26 
+## - Fold1: mtry=26 
+## + Fold1: mtry=51 
+## - Fold1: mtry=51 
+## + Fold2: mtry= 2 
+## - Fold2: mtry= 2 
+## + Fold2: mtry=26 
+## - Fold2: mtry=26 
+## + Fold2: mtry=51 
+## - Fold2: mtry=51 
+## + Fold3: mtry= 2 
+## - Fold3: mtry= 2 
+## + Fold3: mtry=26 
+## - Fold3: mtry=26 
+## + Fold3: mtry=51 
+## - Fold3: mtry=51 
+## + Fold4: mtry= 2 
+## - Fold4: mtry= 2 
+## + Fold4: mtry=26 
+## - Fold4: mtry=26 
+## + Fold4: mtry=51 
+## - Fold4: mtry=51 
+## + Fold5: mtry= 2 
+## - Fold5: mtry= 2 
+## + Fold5: mtry=26 
+## - Fold5: mtry=26 
+## + Fold5: mtry=51 
+## - Fold5: mtry=51 
+## Aggregating results
+## Selecting tuning parameters
+## Fitting mtry = 26 on full training set
+</code></pre>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">rfFit</span><span class="pl-k">$</span><span class="pl-smi">finalModel</span></pre></div>
+
+<pre><code>## 
+## Call:
+##  randomForest(x = x, y = y, mtry = param$mtry, verbose = FALSE) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 26
+## 
+##         OOB estimate of  error rate: 0.65%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 4178    4    1    1    1 0.001672640
+## B   17 2818   12    0    1 0.010533708
+## C    0   13 2548    6    0 0.007401636
+## D    0    0   26 2383    3 0.012023217
+## E    0    0    5    6 2695 0.004065041
+</code></pre>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">rfPred</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">rfFit</span>, <span class="pl-v">newdata</span> <span class="pl-k">=</span> <span class="pl-smi">testing</span>)
+confusionMatrix(<span class="pl-smi">rfPred</span>, <span class="pl-smi">testing</span><span class="pl-k">$</span><span class="pl-smi">classe</span>)</pre></div>
+
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1395   11    0    0    0
+##          B    0  934    4    0    0
+##          C    0    3  848    5    1
+##          D    0    0    3  799    1
+##          E    0    1    0    0  899
+## 
+## Overall Statistics
+##                                          
+##                Accuracy : 0.9941         
+##                  95% CI : (0.9915, 0.996)
+##     No Information Rate : 0.2845         
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16      
+##                                          
+##                   Kappa : 0.9925         
+##  Mcnemar's Test P-Value : NA             
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   0.9842   0.9918   0.9938   0.9978
+## Specificity            0.9969   0.9990   0.9978   0.9990   0.9998
+## Pos Pred Value         0.9922   0.9957   0.9895   0.9950   0.9989
+## Neg Pred Value         1.0000   0.9962   0.9983   0.9988   0.9995
+## Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+## Detection Rate         0.2845   0.1905   0.1729   0.1629   0.1833
+## Detection Prevalence   0.2867   0.1913   0.1748   0.1637   0.1835
+## Balanced Accuracy      0.9984   0.9916   0.9948   0.9964   0.9988
+</code></pre>
+
+<p>Here are the predictions on the 20 clean cases that were set aside.</p>
+
+<div class="highlight highlight-source-r"><pre><span class="pl-smi">rfPred20</span> <span class="pl-k">&lt;-</span> predict(<span class="pl-smi">rfFit</span>, <span class="pl-v">newdata</span> <span class="pl-k">=</span> <span class="pl-smi">cleanTestData</span>)
+<span class="pl-smi">rfPred20</span></pre></div>
+
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E
+</code></pre>
+
+<h2>
+<a id="results" class="anchor" href="#results" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Results</h2>
+
+<p>Random forest trees were generated for the training data using cross-validation. 
+The algorithim gave an accuracy of 99% with a 95% Confidence Interval of [0.9908, 0.9955].
+A Kappa value of 0.99 was also achieved.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/ducheznie/Prediction-Assignment">Prediction Assignment Writeup</a> is maintained by <a href="https://github.com/ducheznie">ducheznie</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
