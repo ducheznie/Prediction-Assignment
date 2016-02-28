@@ -1,0 +1,112 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Thomas So"
+date: "February 28, 2016"
+output: html_document
+---
+
+## Executive SUmmary
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E)
+
+More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+
+## Data
+
+The training data set is available [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+
+The test data is available [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+To start off, we will load the proper libraries, training, and testing data. 
+
+```{r, echo = TRUE, message = FALSE}
+## setting seed and loading libraries
+set.seed(12345)
+library(caret)
+library(ggplot2)
+
+## loading data
+TrainData <- read.csv("pml-training.csv", header = TRUE, na.strings=c("NA", "#DIV/0!"))
+TestData <- read.csv("pml-testing.csv", header = TRUE, na.strings=c("NA", "#DIV/0!"))
+
+```
+
+## Cleaning and Processing
+
+There are many NA values which needs to be removed, as well as variables that we believe have no affect on the prediction of how well an activity was performed.
+The variables that will be removed have to do with user information and time, which are irrelevant to our prediction.
+
+```{r}
+## dimension before processing
+dim(TrainData)
+```
+
+```{r}
+## removing variables with at least one NA value
+noNATrainData <- TrainData[, apply(TrainData, 2, function(x) !any(is.na(x)))]
+dim(noNATrainData)
+```
+
+```{r}
+## removing variables with user information and time
+cleanTrainData <- noNATrainData[,-c(1:8)]
+dim(cleanTrainData)
+```
+
+20 clean cases are set aside as test data set. 
+
+```{r}
+cleanTestData <- TestData[, names(cleanTrainData[,-52])]
+dim(cleanTestData)
+```
+
+## Data Partitioning and Prediction Process
+
+We partition the cleaned data set to obtain a 75% training set and a 25% test set, which is indepedent of the 20 cases that were set aside above.
+
+```{r}
+## partitioning the data
+inTrain <-createDataPartition(y = cleanTrainData$classe, p = 0.75, list = FALSE)
+training <- cleanTrainData[inTrain,]
+testing <- cleanTrainData[-inTrain,]
+dim(training)
+```
+
+```{r}
+dim(testing)
+```
+
+## Model: Random Forest
+
+The first model we try is Random Forest.
+
+```{r}
+fitControl <- trainControl(method="cv", number=5, allowParallel=TRUE, verbose=TRUE)
+rfFit <- train(classe ~. , data = training, method = "rf", trControl = fitControl, verbose = FALSE)
+```
+
+```{r}
+rfFit$finalModel
+```
+
+```{r}
+rfPred <- predict(rfFit, newdata = testing)
+confusionMatrix(rfPred, testing$classe)
+```
+
+Here are the predictions on the 20 clean cases that were set aside.
+
+```{r}
+rfPred20 <- predict(rfFit, newdata = cleanTestData)
+rfPred20
+```
+
+## Results
+
+Random forest trees were generated for the training data using cross-validation. 
+The algorithim gave an accuracy of 99% with a 95% Confidence Interval of [0.9908, 0.9955].
+A Kappa value of 0.99 was also achieved.
+
